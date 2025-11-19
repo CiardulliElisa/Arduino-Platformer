@@ -77,7 +77,7 @@ void createPlatform()
   {
     if (!platforms[i].visible)
     {
-      platforms[i].x = SCREEN_WIDTH; //start right off-screen, invisible
+      platforms[i].x = SCREEN_WIDTH + random(10,20); //start right off-screen, invisible
       platforms[i].length = random(10, 20);
       platforms[i].y = levels[random(MAX_LEVELS)];
       platforms[i].visible = true;
