@@ -6,61 +6,110 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3D
+// #define SCREEN_ADDRESS 0x3D //Physical
+#define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+#define SDA_PIN 21
+#define SCL_PIN 22
+
+//Basic variables. Necessary for the rest of the variables to work.
+int const PADDING = 1; // space between character and platform
+int const PLATFORM_HEIGHT = 4;
+int const PLATFORM_INTERVAL = 16;
+int const JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
+
+struct Platform
+{
+  int x;
+  int y;
+  int length;
+  int visible;
+};
+
+//Platform variables
+int speed = 1; //speed at which the platforms move
+
+// Array containing platforms
+const int MAX_PLATFORMS = 6;
+Platform platforms[MAX_PLATFORMS];
+
+// Array containing all the possible heights at which a platform could be
+const int MAX_LEVELS = 2;
+int levels[MAX_LEVELS] = {
+    SCREEN_HEIGHT - PLATFORM_HEIGHT,
+    SCREEN_HEIGHT - PLATFORM_HEIGHT - JUMP};
+
+//Hardware logic  Variables
 int pinButtonUp = 13;
 int pinButtonDown = 27;
-
 int prevPinButtonUp = HIGH;
 
-int const PLATFORM_INTERVAL = 16;
+// Character variables
+int CHARACTER_WIDTH = 8;
+int CHARACTER_HEIGHT = 8;
+int xCharacter;
+int yCharacter;
 
-// First Platform
-int platformHeight = 4;
-int platformLength1 = SCREEN_WIDTH;
-int xPlatform1 = 0;
-int yPlatform1 = SCREEN_HEIGHT - platformHeight;
-
-// Second Platform
-int platformLength2 = SCREEN_WIDTH;
-int xPlatform2 = SCREEN_WIDTH / 2;
-int yPlatform2 = yPlatform1 - PLATFORM_INTERVAL;
-
-// Character
-int characterHeight = 8;
-int characterWidth = 8;
-int xCharacter = 4;
-int yCharacter = yPlatform1 - characterHeight - 1;
-
-void jump()
+//When the UP button is clicked, the character jumps up
+void jump() 
 {
   if (digitalRead(pinButtonUp) == LOW && prevPinButtonUp == HIGH)
   {
-    yCharacter -= PLATFORM_INTERVAL - platformHeight - 1 - characterHeight;
+    yCharacter -= JUMP;
   }
 }
 
 // Returns true if the bit is white
-boolean getPixel(int x, int y)
-{
+boolean getPixel(int x, int y) {
   int width = SCREEN_WIDTH;
   int byteIndex = x + (y / 8) * width;
   uint8_t bitMask = 1 << (y & 7);
   return (oled.getBuffer()[byteIndex] & bitMask) != 0;
 }
 
-void gravity()
+//Create a platform, if possible
+void createPlatform()
 {
-  if (!getPixel(xCharacter + characterHeight + 1, yCharacter + characterHeight + 1))
+  // Find an available slot in the platforms array
+  for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    yCharacter += PLATFORM_INTERVAL + platformHeight + 1;
+    if (!platforms[i].visible)
+    {
+      platforms[i].x = SCREEN_WIDTH; //start right off-screen, invisible
+      platforms[i].length = random(10, 20);
+      platforms[i].y = levels[random(MAX_LEVELS)];
+      platforms[i].visible = true;
+      break;
+    }
+  }
+}
+
+//Move and display platforms
+void updateScene()
+{
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    if (platforms[i].visible)
+    {
+      platforms[i].x -= speed;
+
+      // Handle platform disappearing left side
+      if (platforms[i].x + platforms[i].length <= 0)
+      {
+        platforms[i].visible = false;
+      }
+
+      // Display platform
+      oled.fillRect(platforms[i].x, platforms[i].y, platforms[i].length, PLATFORM_HEIGHT, WHITE);
+    }
   }
 }
 
 void setup()
 {
+  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
@@ -70,28 +119,42 @@ void setup()
   {
     Serial.println(F("SSD1306 allocation failed"));
   }
+
+  //Create the starting platform to make sure that the character is not floating in the void
+  Platform start;
+  start.length = SCREEN_WIDTH;
+  start.x = 0;
+  start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
+  start.visible = true;
+
+  platforms[0] = start;
+
+  xCharacter = start.x + 4;
+  yCharacter = start.y - CHARACTER_HEIGHT - PADDING;
+
+  //Generate character initial position
+  oled.fillRect(start.x + 4, start.y + PLATFORM_HEIGHT + 1, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
 }
 
-void loop()
-{
+void loop() {
   oled.clearDisplay();
 
-  // handle lives
+  //TODO: handle lives/hearts
 
-  // handle score
+  //Handle scene (platforms)
+  createPlatform();
+  updateScene();
 
-  // generate character
-  oled.fillRect(xCharacter, yCharacter, characterWidth, characterHeight, WHITE);
+  // TODO: handle score
 
-  // generate platform(s)
-  oled.fillRect(xPlatform1, yPlatform1, platformLength1, platformHeight, WHITE);
-  oled.fillRect(xPlatform2, yPlatform2, platformLength2, platformHeight, WHITE);
-
-  // generate coins
-
-  // Handle jump
+  // TODO: Handle character logic
+  oled.fillRect(xCharacter, yCharacter, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
   jump();
   // gravity();
+
+  // TODO: handle coins
+
+  // Handle enemies
 
   prevPinButtonUp = digitalRead(pinButtonUp);
 
