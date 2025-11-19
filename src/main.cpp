@@ -6,13 +6,13 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-// #define SCREEN_ADDRESS 0x3D //Physical
-#define SCREEN_ADDRESS 0x3C // Emulator
+#define SCREEN_ADDRESS 0x3D //Physical
+//#define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define SDA_PIN 21
-#define SCL_PIN 22
+//#define SDA_PIN 21
+//#define SCL_PIN 22
 
 //Basic variables. Necessary for the rest of the variables to work.
 int const PADDING = 1; // space between character and platform
@@ -46,11 +46,54 @@ int pinButtonUp = 13;
 int pinButtonDown = 27;
 int prevPinButtonUp = HIGH;
 
+
+
+// Heart variables
+const int heartWidth = 8;
+const int heartHeight = 7;
+int lives = 3;
+const unsigned char heartBitmap[] PROGMEM = {
+  0b01100110,
+  0b11111111,
+  0b11111111,
+  0b11111111,
+  0b01111110,
+  0b00111100,
+  0b00011000
+};
+
 // Character variables
-int CHARACTER_WIDTH = 8;
-int CHARACTER_HEIGHT = 8;
+const int CHARACTER_WIDTH = 8;
+const int CHARACTER_HEIGHT = 10;
 int xCharacter;
 int yCharacter;
+const unsigned char ghostBitmap[] PROGMEM = {
+  0b00111100, 
+  0b01111110, 
+  0b11111111, 
+  0b11011011, 
+  0b11011011, 
+  0b11011011,
+  0b11111111, 
+  0b11110111, 
+  0b11100111, 
+  0b11000011  
+};
+
+// function to draw the hearts
+void drawHearts(int lives) {
+  for (int i = 0; i < lives; i++) {
+    int xHeart = SCREEN_WIDTH - (i+1)*(heartWidth + 2);
+    int yHeart = 2;
+    oled.drawBitmap(xHeart, yHeart, heartBitmap, heartWidth, heartHeight, WHITE);
+  }
+}
+
+// function to draw the pacman-like character
+void drawGhost() {
+  oled.drawBitmap(xCharacter, yCharacter, ghostBitmap, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
+}
+
 
 //When the UP button is clicked, the character jumps up
 void jump() 
@@ -109,7 +152,7 @@ void updateScene()
 
 void setup()
 {
-  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
@@ -133,11 +176,18 @@ void setup()
   yCharacter = start.y - CHARACTER_HEIGHT - PADDING;
 
   //Generate character initial position
-  oled.fillRect(start.x + 4, start.y + PLATFORM_HEIGHT + 1, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
+  //oled.fillRect(start.x + 4, start.y + PLATFORM_HEIGHT + 1, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
 }
 
 void loop() {
   oled.clearDisplay();
+
+  
+  // Display hearts
+  drawHearts(lives);
+  // Display character
+  drawGhost();
+
 
   //TODO: handle lives/hearts
 
@@ -148,7 +198,6 @@ void loop() {
   // TODO: handle score
 
   // TODO: Handle character logic
-  oled.fillRect(xCharacter, yCharacter, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
   jump();
   // gravity();
 
