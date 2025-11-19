@@ -13,20 +13,51 @@ Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 int pinButtonUp = 13;
 int pinButtonDown = 27;
 
-// Ball Settings
-int xBallPos = SCREEN_WIDTH / 2;
-int yBallPos = SCREEN_HEIGHT / 2;
+int prevPinButtonUp = HIGH;
 
-int xSpeed = 2;
-int ySpeed = 2;
-int ballRadius = 4;
+int const PLATFORM_INTERVAL = 16;
 
-// Paddle Setting
-int paddleWidth = 4;
-int paddleHeight = 24;
-int xPaddlePos = SCREEN_WIDTH - paddleWidth - 2;
-int yPaddlePos = (SCREEN_HEIGHT - paddleHeight) / 2;
-int paddleSpeed = 2;
+// First Platform
+int platformHeight = 4;
+int platformLength1 = SCREEN_WIDTH;
+int xPlatform1 = 0;
+int yPlatform1 = SCREEN_HEIGHT - platformHeight;
+
+// Second Platform
+int platformLength2 = SCREEN_WIDTH;
+int xPlatform2 = SCREEN_WIDTH / 2;
+int yPlatform2 = yPlatform1 - PLATFORM_INTERVAL;
+
+// Character
+int characterHeight = 8;
+int characterWidth = 8;
+int xCharacter = 4;
+int yCharacter = yPlatform1 - characterHeight - 1;
+
+void jump()
+{
+  if (digitalRead(pinButtonUp) == LOW && prevPinButtonUp == HIGH)
+  {
+    yCharacter -= PLATFORM_INTERVAL - platformHeight - 1 - characterHeight;
+  }
+}
+
+// Returns true if the bit is white
+boolean getPixel(int x, int y)
+{
+  int width = SCREEN_WIDTH;
+  int byteIndex = x + (y / 8) * width;
+  uint8_t bitMask = 1 << (y & 7);
+  return (oled.getBuffer()[byteIndex] & bitMask) != 0;
+}
+
+void gravity()
+{
+  if (!getPixel(xCharacter + characterHeight + 1, yCharacter + characterHeight + 1))
+  {
+    yCharacter += PLATFORM_INTERVAL + platformHeight + 1;
+  }
+}
 
 void setup()
 {
@@ -45,48 +76,25 @@ void loop()
 {
   oled.clearDisplay();
 
-  xBallPos += xSpeed;
-  yBallPos += ySpeed;
+  // handle lives
 
-  if (digitalRead(pinButtonUp) == LOW && yPaddlePos > 0)
-  {
-    yPaddlePos -= paddleSpeed;
-  }
+  // handle score
 
-  if (digitalRead(pinButtonDown) == LOW && yPaddlePos + paddleHeight < SCREEN_HEIGHT)
-  {
-    yPaddlePos += paddleSpeed;
-  }
+  // generate character
+  oled.fillRect(xCharacter, yCharacter, characterWidth, characterHeight, WHITE);
 
-  if (xBallPos - ballRadius <= 0)
-  {
-    xSpeed *= -1;
-  }
+  // generate platform(s)
+  oled.fillRect(xPlatform1, yPlatform1, platformLength1, platformHeight, WHITE);
+  oled.fillRect(xPlatform2, yPlatform2, platformLength2, platformHeight, WHITE);
 
-  if (yBallPos - ballRadius <= 0 || yBallPos + ballRadius >= SCREEN_HEIGHT - 1)
-  {
-    ySpeed *= -1;
-  }
+  // generate coins
 
-  // Check with paddle
-  if (xBallPos + ballRadius >= xPaddlePos)
-  {
-    if (yBallPos + ballRadius >= yPaddlePos && yBallPos + ballRadius <= yPaddlePos + paddleHeight)
-    {
-      xSpeed *= -1;
-    }
-    else
-    {
-      // Reset
-      xBallPos = SCREEN_WIDTH / 2;
-      yBallPos = SCREEN_HEIGHT / 2;
-      xSpeed = 2;
-      ySpeed = 2;
-    }
-  }
+  // Handle jump
+  jump();
+  // gravity();
 
-  oled.fillRect(xPaddlePos, yPaddlePos, paddleWidth, paddleHeight, SSD1306_WHITE);
-  oled.fillCircle(xBallPos, yBallPos, ballRadius, SSD1306_INVERSE);
+  prevPinButtonUp = digitalRead(pinButtonUp);
+
   oled.display();
   delay(30);
 }
