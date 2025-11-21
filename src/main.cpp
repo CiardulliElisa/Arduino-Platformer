@@ -19,8 +19,8 @@ int const PADDING = 1; // space between character and platform
 int const PLATFORM_HEIGHT = 4;
 int const PLATFORM_INTERVAL = 16;
 int const JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
-const int MAX_PLATFORMS = 8;
-int const UNIT = SCREEN_WIDTH / MAX_PLATFORMS;
+int const UNIT = 16;
+int const MAX_PLATFORMS = (SCREEN_WIDTH / UNIT) * 2;
 
 struct Platform
 {
@@ -120,11 +120,13 @@ void createPlatform()
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
     // stop if the generated platforms fill the screen width
-    if (lastX < SCREEN_WIDTH)
+    if (lastX < SCREEN_WIDTH * 2)
     {
       if (!platforms[i].visible)
       {
-        platforms[i].x = lastX + UNIT * random(2);
+        // There is a  lesser chance of there being a gap
+        int randomX = random(6) == 0 ? 1 : 0;
+        platforms[i].x = lastX + UNIT * randomX;
         platforms[i].length = UNIT;
         platforms[i].y = levels[random(MAX_LEVELS)];
         platforms[i].visible = true;
