@@ -90,13 +90,40 @@ float impulse = -7;   // upward impulse
 bool isJumping = false;
 bool isFalling = false;
 
-// function to draw the right-up corner hearts
-void drawHearts(int lives) {
-  for (int i = 0; i < lives; i++) {
+// enemy variables
+const unsigned char enemyBitmap[] PROGMEM = {
+    0b00011000, // ...##...
+    0b00111100, // ..####..
+    0b01111110, // .######.
+    0b11111100, // ######.. <-- Mouth here
+    0b11111000, // #####... <-- Mouth here
+    0b11111100, // ######.. <-- Mouth here
+    0b01111110, // .######.
+    0b00111100, // ..####..
+    0b00011000, // ...##...
+    0b00000000  // ........
+};
+int xEnemy;
+int yEnemy;
+int ENEMY_HEIGHT = 10;
+int ENEMY_WIDTH = 8;
+
+// function to draw the hearts
+void drawHearts(int lives)
+{
+  for (int i = 0; i < lives; i++)
+  {
     int xHeart = SCREEN_WIDTH - (i + 1) * (heartWidth + 2);
     int yHeart = 2;
     oled.drawBitmap(xHeart, yHeart, heartBitmap, heartWidth, heartHeight, WHITE);
   }
+}
+
+void drawEnemy()
+{
+  xEnemy = 2;
+  yEnemy = 2;
+  oled.drawBitmap(xEnemy, yEnemy, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
 }
 
 // function to draw the player
@@ -300,6 +327,7 @@ void loop() {
   // TODO: Handle character logic
   jump();
   jumpPhysics(); 
+  drawEnemy();
 
   prevPinButtonUp = digitalRead(pinButtonUp);
 
