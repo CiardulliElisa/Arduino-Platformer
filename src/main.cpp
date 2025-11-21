@@ -78,6 +78,24 @@ const unsigned char ghostBitmap[] PROGMEM = {
     0b11100111,
     0b11000011};
 
+// enemy variables
+const unsigned char enemyBitmap[] PROGMEM = {
+    0b00011000, // ...##...
+    0b00111100, // ..####..
+    0b01111110, // .######.
+    0b11111100, // ######.. <-- Mouth here
+    0b11111000, // #####... <-- Mouth here
+    0b11111100, // ######.. <-- Mouth here
+    0b01111110, // .######.
+    0b00111100, // ..####..
+    0b00011000, // ...##...
+    0b00000000  // ........
+};
+int xEnemy;
+int yEnemy;
+int ENEMY_HEIGHT = 10;
+int ENEMY_WIDTH = 8;
+
 // function to draw the hearts
 void drawHearts(int lives)
 {
@@ -87,6 +105,13 @@ void drawHearts(int lives)
     int yHeart = 2;
     oled.drawBitmap(xHeart, yHeart, heartBitmap, heartWidth, heartHeight, WHITE);
   }
+}
+
+void drawEnemy()
+{
+  xEnemy = 2;
+  yEnemy = 2;
+  oled.drawBitmap(xEnemy, yEnemy, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
 }
 
 // function to draw the pacman-like character
@@ -221,6 +246,7 @@ void loop()
   // TODO: handle coins
 
   // Handle enemies
+  drawEnemy();
 
   prevPinButtonUp = digitalRead(pinButtonUp);
 
