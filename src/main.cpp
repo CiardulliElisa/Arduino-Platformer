@@ -181,10 +181,29 @@ void jumpPhysics() {
   if (!landed) {
     isFalling = true;
   }
+}
 
-  // player falls down the ground --> game stops
-  if (yCharacter > SCREEN_HEIGHT) {
-    lives--;
+// respawn the player on the first ground platform available
+void repositionPlayer() {
+  for (int i = 0; i < MAX_PLATFORMS; i++) {
+    if (platforms[i].visible && platforms[i].y == levels[0]) { // ground platform identified
+      xCharacter = platforms[i].x + 4; 
+      yCharacter = platforms[i].y - CHARACTER_HEIGHT - PADDING; 
+      ySpeed = 0;
+      isFalling = false;
+      isJumping = false;
+      break;
+    }
+  }
+}
+
+// handle player falling and losing lives
+void handleFallAndLives() {
+  if (yCharacter > SCREEN_HEIGHT) { 
+    if (lives > 0) {
+      lives--;          
+      repositionPlayer(); 
+    }
   }
 }
 
@@ -251,7 +270,7 @@ void createPlatform() {
 
 // Move and display platforms
 void updateScene() {
-  // last X needs to be recalculated after every scende update
+  // last X needs to be recalculated after every scene update
   lastX = 0;
 
   for (int i = 0; i < MAX_PLATFORMS; i++) {
@@ -316,17 +335,14 @@ void loop() {
   // Display player
   drawGhost();
 
-  // TODO: handle lives/hearts
-
   // Handle scene (platforms)
   createPlatform();
   updateScene();
 
-  // TODO: handle score
-
-  // TODO: Handle character logic
+  // Handle character logic
   jump();
   jumpPhysics(); 
+  handleFallAndLives();
   drawEnemy();
 
   prevPinButtonUp = digitalRead(pinButtonUp);
