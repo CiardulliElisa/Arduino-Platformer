@@ -119,22 +119,20 @@ void createPlatform()
   // Find first available slot in the platforms array (the platforms should be ordered in such a way that )
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    if (!platforms[i].visible)
+    // stop if the generated platforms fill the screen width
+    if (lastX < SCREEN_WIDTH)
     {
-      int choice = random(2);
-      platforms[i].x = choice == 0 ? lastX : lastX + UNIT;
-      platforms[i].length = UNIT;
-      platforms[i].y = levels[random(MAX_LEVELS)];
-      platforms[i].visible = true;
-      // Update last x, if the new platform is further right than any other platform
-      if (lastX <= platforms[i].x + platforms[i].length)
+      if (!platforms[i].visible)
       {
-        lastX = platforms[i].x + platforms[i].length;
-      }
-      // stop if the generated platforms fill the screen width
-      if (lastX >= SCREEN_WIDTH)
-      {
-        break;
+        platforms[i].x = lastX + UNIT * random(2);
+        platforms[i].length = UNIT;
+        platforms[i].y = levels[random(MAX_LEVELS)];
+        platforms[i].visible = true;
+        // Update last x, if the new platform is further right than any other platform
+        if (lastX <= platforms[i].x + platforms[i].length)
+        {
+          lastX = platforms[i].x + platforms[i].length;
+        }
       }
     }
   }
