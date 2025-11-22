@@ -6,8 +6,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3D //Physical
-// #define SCREEN_ADDRESS 0x3C // Emulator
+// #define SCREEN_ADDRESS 0x3D //Physical
+#define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -30,8 +30,15 @@ struct Platform
   int visible;
 };
 
+struct Enemy
+{
+  int x;
+  int y;
+  bool visible;
+};
+
 // Platform variables
-int speed = 1; // speed at which the platforms move
+int speed = 2; // speed at which the scene moves
 int lastX;     // the end of the furthest left platform
 
 // Array containing platforms
@@ -101,12 +108,11 @@ const unsigned char enemyBitmap[] PROGMEM = {
     0b01000010, 0b00,
     0b10100101, 0b00};
 
-int xEnemy;
-int yEnemy;
 int ENEMY_HEIGHT = 10;
 int ENEMY_WIDTH = 10;
 int const MAX_ENEMIES = 3;
-int enemies[MAX_ENEMIES];
+Enemy enemies[MAX_ENEMIES];
+int furthestEnemy = 0;
 
 // function to draw the hearts
 void drawHearts(int lives)
@@ -122,20 +128,46 @@ void drawHearts(int lives)
 //Spawns an enemy on a random visible platform, off screen
 void spawnEnemy()
 {
-  //Find a platform that has a point off screen
-  for (int i = 0; i < MAX_PLATFORMS; i++) {
-    if(platforms[i].x + platforms[i].length >= SCREEN_WIDTH) {
-      //See if there is an available slot in the enemies array
-      for (int e = 0; e < MAX_ENEMIES; e++)
+  // See if there is an available slot in the enemies array
+  for (int e = 0; e < MAX_ENEMIES; e++)
+  {
+    if (!enemies[e].visible)
+    {
+      // Find a platform that has a point off screen
+      for (int i = 0; i < MAX_PLATFORMS; i++)
       {
-        // if this enemy has disappeared off screen to the left, it can be subsitited
-        if(enemies[e] < 0) {
-          xEnemy = random(SCREEN_WIDTH + platforms[i].x + platforms[i].length);
-          yEnemy = platforms[i].y - PADDING;
-          enemies[e] = xEnemy;
-          oled.drawBitmap(xEnemy, yEnemy, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+        if (platforms[i].x + platforms[i].length >= SCREEN_WIDTH)
+        {
+          // spawn the enemy on a random coordinate of the platoform, that is off screen, only if it is at least a unit's distance from the furthest enemy
+          int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
+          enemies[e].x = random(startingPoint, platforms[i].x + platforms[i].length);
+          enemies[e].y = platforms[i].y - PADDING - ENEMY_HEIGHT;
+          oled.drawBitmap(enemies[e].x, enemies[e].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+          enemies[e].visible = true;
+          furthestEnemy = enemies[e].x + ENEMY_WIDTH;
           break;
         }
+      }
+    }
+  }
+}
+
+void enemyCollision()
+{
+  for (int i = 0; i < MAX_ENEMIES; i++)
+  {
+    if (enemies[i].visible)
+    {
+      bool horizontalOverlap = (xCharacter + CHARACTER_WIDTH > enemies[i].x) &&
+                               (xCharacter < enemies[i].x + ENEMY_WIDTH);
+      bool verticalOverlap = (yCharacter + CHARACTER_HEIGHT > enemies[i].y) &&
+                             (yCharacter < enemies[i].y + ENEMY_HEIGHT);
+
+      if (horizontalOverlap && verticalOverlap)
+      {
+        lives--;
+        enemies[i].visible = false;
+        repositionPlayer();
       }
     }
   }
@@ -343,6 +375,7 @@ void updateScene()
 {
   // last X needs to be recalculated after every scene update
   lastX = 0;
+  furthestEnemy = 0;
 
   //move platforms
   for (int i = 0; i < MAX_PLATFORMS; i++)
@@ -366,17 +399,25 @@ void updateScene()
   }
   //Move enemies
   for (int i = 0; i < MAX_ENEMIES; i++) {
-    // if part of the enemy is still visible
-    if(xEnemy + ENEMY_WIDTH >= 0) {
-      //move to the left
-      xEnemy -= speed;
+    enemies[i].x -= speed;
+    // if part of the enemy is still visible, display it
+    if (enemies[i].x + ENEMY_WIDTH >= 0)
+    {
+      oled.drawBitmap(enemies[i].x, enemies[i].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+      if(enemies[i].x + ENEMY_WIDTH >= furthestEnemy) {
+        furthestEnemy = enemies[i].x + ENEMY_WIDTH;
+      }
+    }
+    else
+    {
+      enemies[i].visible = false;
     }
   }
 }
 
 void setup()
 {
-  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
@@ -400,45 +441,51 @@ void setup()
   // player initial position
   xCharacter = start.x + 4;
   yCharacter = start.y - CHARACTER_HEIGHT - PADDING;
-
-  // Generate character initial position
-  // oled.fillRect(start.x + 4, start.y + PLATFORM_HEIGHT + 1, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
+  
+  //Hide enemies initially
+  for (int i = 0; i < MAX_ENEMIES; i++) {
+    enemies[i].x = 0 - ENEMY_WIDTH;
+    enemies[i].visible = false;
+  }
 }
 
 void loop()
 {
 
-  // checking the game over condition
+  oled.clearDisplay();
+
   if (lives <= 0)
   {
     gameOver();
-    return;
   }
+  else
+  {
+    // --- Game Update Logic (Only runs if lives > 0) ---
 
-  oled.clearDisplay();
+    // Display hearts
+    drawHearts(lives);
+    // Display player
+    drawGhost();
 
-  // Display hearts
-  drawHearts(lives);
-  // Display player
-  drawGhost();
+    // Handle scene (platforms)
+    createPlatform();
+    updateScene();
 
-  // Handle scene (platforms)
-  createPlatform();
-  updateScene();
+    // Handle character logic
+    jump();
+    jumpPhysics();
+    handleFallAndLives();
 
-  // Handle character logic
-  jump();
-  jumpPhysics();
-  handleFallAndLives();
+    // Enemy logic
+    spawnEnemy();
+    enemyCollision();
 
-  //Enemy logic
-  spawnEnemy();
+    // Score logic
 
-  // Score logic
+    // Coins logic
 
-  // Coins logic
-
-  prevPinButtonUp = digitalRead(pinButtonUp);
+    prevPinButtonUp = digitalRead(pinButtonUp);
+  }
 
   oled.display();
   delay(30);
