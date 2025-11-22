@@ -52,8 +52,9 @@ int levels[MAX_LEVELS] = {
 
 // Hardware logic variables
 int pinButtonUp = 13;
-int pinButtonDown = 27;
+int pinButtonShoot = 27;
 int prevPinButtonUp = HIGH;
+int prevPinButtonShoot = HIGH;
 
 // Heart variables
 const int heartWidth = 8;
@@ -114,6 +115,18 @@ int const MAX_ENEMIES = 3;
 Enemy enemies[MAX_ENEMIES];
 int furthestEnemy = 0;
 
+// bullet variables
+struct Bullet
+{
+  int x;
+  int y;
+  bool visible;
+};
+
+int BULLET_RADIUS = 1;
+int const MAX_BULLETS = 50;
+Bullet bullets[MAX_BULLETS];
+
 // function to draw the hearts
 void drawHearts(int lives)
 {
@@ -151,6 +164,27 @@ void spawnEnemy()
         }
       }
     }
+  }
+}
+
+void shoot()
+{
+  // shoot bullest when the shoot button is clicked
+  if (digitalRead(pinButtonShoot) == LOW && prevPinButtonShoot == HIGH)
+  {
+    // draw new bullet at about 2 pixels to the right of character
+    for (int i = 0; i < MAX_BULLETS; i++)
+    {
+      if (!bullets[i].visible)
+      {
+        bullets[i].x = xCharacter + CHARACTER_WIDTH + 4;
+        bullets[i].y = yCharacter + (CHARACTER_HEIGHT / 2);
+        bullets[i].visible = true;
+        oled.fillCircle(bullets[i].x, bullets[i].y, BULLET_RADIUS, WHITE);
+      }
+    }
+
+    // move the bullets to the right until they hit an enemy or disappear off screen
   }
 }
 
@@ -313,30 +347,7 @@ void gameOver()
 
   if (digitalRead(pinButtonUp) == LOW)
   {
-      // Reset lives
-      lives = 3;
-
-      // Reset player position
-      ySpeed = 0;
-      isJumping = false;
-      yCharacter = levels[0] - CHARACTER_HEIGHT;
-
-      // Reset platform array
-      for (int i = 0; i < MAX_PLATFORMS; i++)
-      {
-          platforms[i].visible = false;
-      }
-
-      // Regenerate initial ground platform
-      Platform start;
-      start.length = 50;
-      start.x = 0;
-      start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
-      start.visible = true;
-
-      platforms[0] = start;
-      lastX = start.x + start.length;
-      xCharacter = start.x + 4;
+    ESP.restart();
   }
 }
 
@@ -375,7 +386,19 @@ void updateScene()
   lastX = 0;
   furthestEnemy = 0;
 
-  //move platforms
+  // move bullets
+  for (int i = 0; i < MAX_BULLETS; i++)
+  {
+    bullets[i].x += speed + 2;
+    if(bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH) {
+      bullets[i].visible = false;
+    }
+    if(bullets[i].visible) {
+      oled.fillCircle(bullets[i].x, bullets[i].y, BULLET_RADIUS, WHITE);
+    }
+  }
+
+  // move platforms
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
     if (platforms[i].visible)
@@ -419,7 +442,7 @@ void setup()
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
-  pinMode(pinButtonDown, INPUT_PULLUP);
+  pinMode(pinButtonShoot, INPUT_PULLUP);
 
   if (!oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
   {
@@ -473,6 +496,7 @@ void loop()
     jump();
     jumpPhysics();
     handleFallAndLives();
+    shoot();
 
     // Enemy logic
     spawnEnemy();
@@ -483,6 +507,7 @@ void loop()
     // Coins logic
 
     prevPinButtonUp = digitalRead(pinButtonUp);
+    prevPinButtonShoot = digitalRead(pinButtonShoot);
   }
 
   oled.display();
