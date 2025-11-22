@@ -6,8 +6,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3D //Physical
-// #define SCREEN_ADDRESS 0x3C // Emulator
+//#define SCREEN_ADDRESS 0x3D //Physical
+#define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -19,8 +19,8 @@ const int PADDING = 1; // space between character and platform
 const int PLATFORM_HEIGHT = 4;      
 const int PLATFORM_INTERVAL = 16;   
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
-const int UNIT = 16;
-const int MAX_PLATFORMS = 8;        
+const int UNIT = 8;
+const int MAX_PLATFORMS = 16;        
 
 struct Platform {
   int x;
@@ -292,7 +292,7 @@ void updateScene() {
 
 
 void setup() {
-  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
