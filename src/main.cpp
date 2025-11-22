@@ -267,46 +267,42 @@ void handleFallAndLives()
 // game ends
 void gameOver()
 {
-  // --- Big "GAME OVER" text ---
+  oled.clearDisplay();
   oled.setTextSize(2);
   oled.setTextColor(WHITE);
-  int16_t x1, y1;
-  uint16_t w, h;
-  oled.getTextBounds("GAME OVER", 0, 0, &x1, &y1, &w, &h);
-  oled.setCursor((SCREEN_WIDTH - w) / 2, 15);
+  oled.setCursor(5, 20);
   oled.println("GAME OVER");
-
-  // --- Smaller "Press UP" text ---
-  oled.setTextSize(1); // Smaller text
-  oled.getTextBounds("Press UP", 0, 0, &x1, &y1, &w, &h);
-  oled.setCursor((SCREEN_WIDTH - w) / 2, 45); 
+  oled.setCursor(10, 45);
   oled.println("Press UP");
+  oled.display();
+  delay(30);
 
   if (digitalRead(pinButtonUp) == LOW)
   {
-    // Reset lives
-    lives = 3;
+      // Reset lives
+      lives = 3;
 
-    // Reset player position
-    ySpeed = 0;
-    isJumping = false;
-    yCharacter = levels[0] - CHARACTER_HEIGHT;
+      // Reset player position
+      ySpeed = 0;
+      isJumping = false;
+      yCharacter = levels[0] - CHARACTER_HEIGHT;
 
-    // Reset platform array
-    for (int i = 0; i < MAX_PLATFORMS; i++)
-    {
-      platforms[i].visible = false;
-    }
+      // Reset platform array
+      for (int i = 0; i < MAX_PLATFORMS; i++)
+      {
+          platforms[i].visible = false;
+      }
 
-    // regenerate initial ground platform
-    Platform start;
-    start.length = 50;
-    start.x = 0;
-    start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
-    start.visible = true;
-    platforms[0] = start;
-    lastX = start.x + start.length;
-    xCharacter = start.x + 4;
+      // Regenerate initial ground platform
+      Platform start;
+      start.length = 50;
+      start.x = 0;
+      start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
+      start.visible = true;
+
+      platforms[0] = start;
+      lastX = start.x + start.length;
+      xCharacter = start.x + 4;
   }
 }
 
