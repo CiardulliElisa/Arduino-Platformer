@@ -136,10 +136,10 @@ void spawnEnemy()
       // Find a platform that has a point off screen
       for (int i = 0; i < MAX_PLATFORMS; i++)
       {
-        if (platforms[i].x + platforms[i].length >= SCREEN_WIDTH)
+        int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
+        if (platforms[i].x + platforms[i].length >= startingPoint)
         {
           // spawn the enemy on a random coordinate of the platoform, that is off screen, only if it is at least a unit's distance from the furthest enemy
-          int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
           enemies[e].x = random(startingPoint, platforms[i].x + platforms[i].length);
           enemies[e].y = platforms[i].y - PADDING - ENEMY_HEIGHT;
           oled.drawBitmap(enemies[e].x, enemies[e].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
