@@ -19,7 +19,7 @@ const int PADDING = 1; // space between character and platform
 const int PLATFORM_HEIGHT = 4;
 const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
-const int UNIT = 8;
+const int UNIT = 10;
 const int MAX_PLATFORMS = 16;
 
 struct Platform
@@ -105,6 +105,8 @@ int xEnemy;
 int yEnemy;
 int ENEMY_HEIGHT = 10;
 int ENEMY_WIDTH = 10;
+int const MAX_ENEMIES = 3;
+int enemies[MAX_ENEMIES];
 
 // function to draw the hearts
 void drawHearts(int lives)
@@ -117,11 +119,26 @@ void drawHearts(int lives)
   }
 }
 
-void drawEnemy()
+//Spawns an enemy on a random visible platform, off screen
+void spawnEnemy()
 {
-  xEnemy = 2;
-  yEnemy = 2;
-  oled.drawBitmap(xEnemy, yEnemy, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+  //Find a platform that has a point off screen
+  for (int i = 0; i < MAX_PLATFORMS; i++) {
+    if(platforms[i].x + platforms[i].length >= SCREEN_WIDTH) {
+      //See if there is an available slot in the enemies array
+      for (int e = 0; e < MAX_ENEMIES; e++)
+      {
+        // if this enemy has disappeared off screen to the left, it can be subsitited
+        if(enemies[e] < 0) {
+          xEnemy = random(SCREEN_WIDTH + platforms[i].x + platforms[i].length);
+          yEnemy = platforms[i].y - PADDING;
+          enemies[e] = xEnemy;
+          oled.drawBitmap(xEnemy, yEnemy, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+          break;
+        }
+      }
+    }
+  }
 }
 
 // function to draw the player
@@ -137,7 +154,7 @@ void jump()
   {
     if (!isFalling)
     { // player can jump only if on a platform
-      ySpeed = impulse;
+      ySpeed = impulse; //ets up upward movement
       isFalling = true;
       isJumping = true;
     }
@@ -147,6 +164,8 @@ void jump()
 // applying physics logic to the jump
 void jumpPhysics()
 {
+
+  int yCharacter_prev = yCharacter;
 
   // apply gravity to the player
   ySpeed += gravity;
@@ -166,20 +185,22 @@ void jumpPhysics()
         (xCharacter + CHARACTER_WIDTH > platforms[i].x) &&
         (xCharacter < platforms[i].x + platforms[i].length);
 
-    // Check if character feet intersect platform top
-    bool feetTouchPlatform =
-        (yCharacter + CHARACTER_HEIGHT >= platforms[i].y - PADDING) &&
-        (yCharacter + CHARACTER_HEIGHT <= platforms[i].y + PLATFORM_HEIGHT);
+    int characterFeet = yCharacter + CHARACTER_HEIGHT;
+    int characterFeet_prev = yCharacter_prev + CHARACTER_HEIGHT;
 
     // condition for player to land on platform
-    if (horizontalOverlap && feetTouchPlatform && ySpeed >= 0)
+    if (horizontalOverlap && ySpeed >= 0)
     {
-      yCharacter = platforms[i].y - CHARACTER_HEIGHT - PADDING;
-      ySpeed = 0;
-      isFalling = false;
-      isJumping = false;
-      landed = true;
-      break;
+      if (characterFeet_prev <= platforms[i].y - PADDING && characterFeet > platforms[i].y - PADDING)
+      {
+        // Collision detected. Snap player to the top of the platform.
+        yCharacter = platforms[i].y - PADDING - CHARACTER_HEIGHT;
+        ySpeed = 0;
+        isFalling = false;
+        isJumping = false;
+        landed = true;
+        break;
+      }
     }
   }
 
@@ -195,8 +216,9 @@ void repositionPlayer()
 {
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    if (platforms[i].visible && platforms[i].x == 0)
-    { // ground platform identified
+    if (platforms[i].visible)
+    {
+      // Find the lowest visible platform (ground)
       xCharacter = platforms[i].x + 4;
       yCharacter = platforms[i].y - CHARACTER_HEIGHT - PADDING;
       ySpeed = 0;
@@ -223,15 +245,20 @@ void handleFallAndLives()
 // game ends
 void gameOver()
 {
-  oled.clearDisplay();
+  // --- Big "GAME OVER" text ---
   oled.setTextSize(2);
   oled.setTextColor(WHITE);
-  oled.setCursor(5, 20);
+  int16_t x1, y1;
+  uint16_t w, h;
+  oled.getTextBounds("GAME OVER", 0, 0, &x1, &y1, &w, &h);
+  oled.setCursor((SCREEN_WIDTH - w) / 2, 15);
   oled.println("GAME OVER");
-  oled.setCursor(10, 45);
+
+  // --- Smaller "Press UP" text ---
+  oled.setTextSize(1); // Smaller text
+  oled.getTextBounds("Press UP", 0, 0, &x1, &y1, &w, &h);
+  oled.setCursor((SCREEN_WIDTH - w) / 2, 45); 
   oled.println("Press UP");
-  oled.display();
-  delay(30);
 
   if (digitalRead(pinButtonUp) == LOW)
   {
@@ -295,6 +322,7 @@ void updateScene()
   // last X needs to be recalculated after every scene update
   lastX = 0;
 
+  //move platforms
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
     if (platforms[i].visible)
@@ -312,6 +340,14 @@ void updateScene()
 
       // Display platform
       oled.fillRect(platforms[i].x, platforms[i].y, platforms[i].length, PLATFORM_HEIGHT, WHITE);
+    }
+  }
+  //Move enemies
+  for (int i = 0; i < MAX_ENEMIES; i++) {
+    // if part of the enemy is still visible
+    if(xEnemy + ENEMY_WIDTH >= 0) {
+      //move to the left
+      xEnemy -= speed;
     }
   }
 }
@@ -372,7 +408,13 @@ void loop()
   jump();
   jumpPhysics();
   handleFallAndLives();
-  drawEnemy();
+
+  //Enemy logic
+  spawnEnemy();
+
+  // Score logic
+
+  // Coins logic
 
   prevPinButtonUp = digitalRead(pinButtonUp);
 
