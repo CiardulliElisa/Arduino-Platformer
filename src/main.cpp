@@ -6,8 +6,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-// #define SCREEN_ADDRESS 0x3D //Physical
-#define SCREEN_ADDRESS 0x3C // Emulator
+#define SCREEN_ADDRESS 0x3D //Physical
+// #define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -170,6 +170,28 @@ void jumpPhysics()
   // apply gravity to the player
   ySpeed += gravity;
   yCharacter += ySpeed;
+
+  // handling the upward collision with the floating platform
+  for (int i = 0; i < MAX_PLATFORMS; i++) {
+    if (!platforms[i].visible) {
+      continue;
+    }
+    // horizontal overlap
+    bool horizontalOverlap =
+      (xCharacter + CHARACTER_WIDTH > platforms[i].x) &&
+      (xCharacter < platforms[i].x + platforms[i].length);
+    // check head collides with bottom edge floating platform
+    bool headHitsPlatform =
+      (yCharacter <= platforms[i].y + PLATFORM_HEIGHT) &&         
+      (yCharacter >= platforms[i].y) && 
+      (ySpeed < 0);                                                
+    if (horizontalOverlap && headHitsPlatform) {
+      yCharacter = platforms[i].y + PLATFORM_HEIGHT;
+      ySpeed = 0;
+      break;
+    }
+  }
+
 
   bool landed = false;
   // checking for collisions on platforms
@@ -354,7 +376,7 @@ void updateScene()
 
 void setup()
 {
-  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
