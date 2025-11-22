@@ -14,21 +14,19 @@ Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define SDA_PIN 21
 #define SCL_PIN 22
 
+// Hardware logic variables
+int pinButtonUp = 13;
+int pinButtonShoot = 27;
+int prevPinButtonUp = HIGH;
+int prevPinButtonShoot = HIGH;
+
 // Basic variables. Necessary for the rest of the variables to work.
-const int PADDING = 1; // space between character and platform
+const int PADDING = 1;
 const int PLATFORM_HEIGHT = 4;
 const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
 const int UNIT = 10;
-const int MAX_PLATFORMS = 16;
-
-struct Platform
-{
-  int x;
-  int y;
-  int length;
-  int visible;
-};
+const int SPEED = 2; // speed at which the scene moves
 
 struct Enemy
 {
@@ -38,10 +36,19 @@ struct Enemy
 };
 
 // Platform variables
-int speed = 2; // speed at which the scene moves
-int lastX;     // the end of the furthest left platform
+struct Platform
+{
+  int x;
+  int y;
+  int length;
+  int visible;
+};
+
+// the end of the right most platform
+int lastX;
 
 // Array containing platforms
+const int MAX_PLATFORMS = 16;
 Platform platforms[MAX_PLATFORMS];
 
 // Array containing all the possible heights at which a platform could be
@@ -50,13 +57,7 @@ int levels[MAX_LEVELS] = {
     SCREEN_HEIGHT - PLATFORM_HEIGHT,
     SCREEN_HEIGHT - PLATFORM_HEIGHT - JUMP};
 
-// Hardware logic variables
-int pinButtonUp = 13;
-int pinButtonShoot = 27;
-int prevPinButtonUp = HIGH;
-int prevPinButtonShoot = HIGH;
-
-// Heart variables
+// Lives variables
 const int heartWidth = 8;
 const int heartHeight = 7;
 int lives = 3;
@@ -92,11 +93,10 @@ const unsigned char ghostBitmap[] PROGMEM = {
 float ySpeed = 0;   // vertical speed
 float gravity = 1;  // gravity applied when falling down
 float impulse = -8; // upward impulse
-
 bool isJumping = false;
 bool isFalling = false;
 
-// enemy variables
+// Enemy variables
 const unsigned char enemyBitmap[] PROGMEM = {
     0b00011000, 0b00,
     0b00111100, 0b00,
@@ -115,19 +115,21 @@ int const MAX_ENEMIES = 3;
 Enemy enemies[MAX_ENEMIES];
 int furthestEnemy = 0;
 
-// bullet variables
+// Bullet variables
 struct Bullet
 {
+  int initialPos;
   int x;
   int y;
   bool visible;
 };
 
 int BULLET_RADIUS = 2;
+int MAX_BULLET_DISTANCE = SCREEN_WIDTH / 2;
 int const MAX_BULLETS = 50;
 Bullet bullets[MAX_BULLETS];
 
-// function to draw the hearts
+// Created a heart for each life in the top right of the screen
 void drawHearts(int lives)
 {
   for (int i = 0; i < lives; i++)
@@ -138,7 +140,7 @@ void drawHearts(int lives)
   }
 }
 
-//Spawns an enemy on a random visible platform, off screen
+// Spawns an enemy on a random platform, off screen
 void spawnEnemy()
 {
   // See if there is an available slot in the enemies array
@@ -148,17 +150,15 @@ void spawnEnemy()
     {
       for (int i = 0; i < MAX_PLATFORMS; i++)
       {
-        //make sure the new enemy is placed both off screen and after the furthest enemy
+        // Place enemy on a platform such that it is placed both off screen and a safe distance after the last enemy
         int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
         startingPoint += UNIT;
-        //Find a platform that has a point that can containg the new enemy 
         if (platforms[i].x + platforms[i].length >= startingPoint)
         {
-          // spawn the enemy on a random coordinate of the platoform, that is off screen, only if it is at least a unit's distance from the furthest enemy
           enemies[e].x = random(startingPoint, platforms[i].x + platforms[i].length);
           enemies[e].y = platforms[i].y - PADDING - ENEMY_HEIGHT;
-          oled.drawBitmap(enemies[e].x, enemies[e].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
           enemies[e].visible = true;
+          // this becomes the last enemy
           furthestEnemy = enemies[e].x + ENEMY_WIDTH;
           break;
         }
@@ -167,13 +167,12 @@ void spawnEnemy()
   }
 }
 
-// When the user clicks the shooting button, a bullet is shot out
+// When the user clicks the shooting button, a bullet is shot out from the character
 void shoot()
 {
   // shoot bullest when the shoot button is clicked
   if (digitalRead(pinButtonShoot) == LOW && prevPinButtonShoot == HIGH)
   {
-    // draw new bullet at about 2 pixels to the right of character
     for (int i = 0; i < MAX_BULLETS; i++)
     {
       if (!bullets[i].visible)
@@ -181,14 +180,14 @@ void shoot()
         bullets[i].x = xCharacter + CHARACTER_WIDTH + 4;
         bullets[i].y = yCharacter + (CHARACTER_HEIGHT / 2);
         bullets[i].visible = true;
+        bullets[i].initialPos = bullets[i].x;
         break;
       }
     }
-
-    // move the bullets to the right until they hit an enemy or disappear off screen
   }
 }
 
+// If the player touches an enemy, it loses a life, the enemy disappears
 void enemyCollision()
 {
   for (int i = 0; i < MAX_ENEMIES; i++)
@@ -199,17 +198,17 @@ void enemyCollision()
                                (xCharacter < enemies[i].x + ENEMY_WIDTH);
       bool verticalOverlap = (yCharacter + CHARACTER_HEIGHT > enemies[i].y) &&
                              (yCharacter < enemies[i].y + ENEMY_HEIGHT);
-
       if (horizontalOverlap && verticalOverlap)
       {
         lives--;
         enemies[i].visible = false;
-        repositionPlayer();
+        // repositionPlayer();
       }
     }
   }
 }
 
+// When a bullet hits an enemy, both the enemy and the bullet disappear
 void enemyKill()
 {
   for (int i = 0; i < MAX_ENEMIES; i++)
@@ -238,7 +237,7 @@ void enemyKill()
   }
 }
 
-// function to draw the player
+// Draws  the player
 void drawGhost()
 {
   oled.drawBitmap(xCharacter, yCharacter, ghostBitmap, CHARACTER_WIDTH, CHARACTER_HEIGHT, WHITE);
@@ -251,17 +250,18 @@ void jump()
   {
     if (!isFalling)
     { // player can jump only if on a platform
-      ySpeed = impulse; //ets up upward movement
+      ySpeed = impulse; // zets up upward movement
       isFalling = true;
       isJumping = true;
     }
   }
 }
 
-// applying physics logic to the jump
+// applying physics logic to the jump, so the character falls down with gravity
 void jumpPhysics()
 {
 
+  // character before fall increment
   int yCharacter_prev = yCharacter;
 
   // apply gravity to the player
@@ -348,7 +348,7 @@ void repositionPlayer()
   }
 }
 
-// handle player falling and losing lives
+// When the player falls off screen but still has lives, they lose a life. If the character is repositioned and the game continues
 void handleFallAndLives()
 {
   if (yCharacter > SCREEN_HEIGHT)
@@ -361,29 +361,73 @@ void handleFallAndLives()
   }
 }
 
-// game ends
+// A Game over screen is shown. The player can press one of the buttons to restart the game
 void gameOver()
 {
-  oled.clearDisplay();
+  // Show game over screen
   oled.setTextSize(2);
   oled.setTextColor(WHITE);
-  oled.setCursor(5, 20);
+
+  // Calculate center for x (rough approximation)
+  int16_t x1, y1;
+  uint16_t w, h;
+  oled.getTextBounds("GAME OVER", 0, 0, &x1, &y1, &w, &h);
+  oled.setCursor((SCREEN_WIDTH - w) / 2, 15);
   oled.println("GAME OVER");
-  oled.setCursor(10, 45);
-  oled.println("Press UP");
+  oled.setTextSize(1);
+  oled.getTextBounds("Press button", 0, 0, &x1, &y1, &w, &h);
+  oled.setCursor((SCREEN_WIDTH - w) / 2, 50);
+  oled.println("Press button");
   oled.display();
   delay(30);
 
+  // Restart the game
   if (digitalRead(pinButtonUp) == LOW)
   {
-    ESP.restart();
+    resetGame();
   }
 }
 
-// Create a platform when possible
+//Resets all variables and created the first scene
+void resetGame()
+{
+  // Reset Lives
+  lives = 3;
+  // reset platforms
+  lastX = 0;
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    platforms[i].visible = false;
+  }
+  //  Create the starting platform to make sure that the character is not floating in the void
+  Platform start;
+  start.length = 50;
+  start.x = 0;
+  start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
+  start.visible = true;
+  lastX = start.x + start.length;
+  platforms[0] = start;
+
+  // Create the character
+  xCharacter = start.x + 4;
+  yCharacter = start.y - CHARACTER_HEIGHT - PADDING;
+
+  // Reset enemies
+  furthestEnemy = 0;
+  for (int i = 0; i < MAX_ENEMIES; i++)
+  {
+    enemies[i].x = 0 - ENEMY_WIDTH;
+    enemies[i].visible = false;
+  }
+
+  //Reset bullets
+  for (int i = 0; i < MAX_BULLETS; i++) {
+    bullets[i].visible = false;
+  }
+}
+// Create a platform
 void createPlatform()
 {
-
   // Find first available slot in the platforms array
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
@@ -408,15 +452,15 @@ void createPlatform()
   }
 }
 
-// move the bullets forward and remove them if they are no longer visible
+// Move the bullets forward and remove them if they are no longer visible or if they have reached maximum travelling distance
 void updateBullets()
 {
   for (int i = 0; i < MAX_BULLETS; i++)
   {
     if(bullets[i].visible) {
-      bullets[i].x += speed + 2;
+      bullets[i].x += SPEED + 2;
     }
-    if (bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH)
+    if (bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH || bullets[i].x - bullets[i].initialPos >= MAX_BULLET_DISTANCE)
     {
       bullets[i].visible = false;
     }
@@ -427,6 +471,7 @@ void updateBullets()
   }
 }
 
+// Move platforms to the left according to the scene speed. Remove them when they completely disappear off screen
 void updatePlatforms()
 {
   lastX = 0;
@@ -435,8 +480,7 @@ void updatePlatforms()
   {
     if (platforms[i].visible)
     {
-      platforms[i].x -= speed;
-      // Handle platform disappearing left side
+      platforms[i].x -= SPEED;
       if (platforms[i].x + platforms[i].length <= 0)
       {
         platforms[i].visible = false;
@@ -450,16 +494,15 @@ void updatePlatforms()
   }
 }
 
+// Move platforms to the left according to the scene speed. Remove them when they completely disappear off screen
 void updateEnemies()
 {
   furthestEnemy = 0;
-  // Move enemies
   for (int i = 0; i < MAX_ENEMIES; i++)
   {
-    // this logic only applies to visible platforms
     if (enemies[i].visible)
     {
-      enemies[i].x -= speed;
+      enemies[i].x -= SPEED;
     }
     if (enemies[i].x + ENEMY_WIDTH <= 0)
     {
@@ -476,7 +519,7 @@ void updateEnemies()
   }
 }
 
-// Move and display platforms
+// Updates/Moves all elements in the scene, except the player, that is stationary
 void updateScene()
 {
   updateBullets();
@@ -488,6 +531,7 @@ void updateScene()
 
 void setup()
 {
+  // Hardware setup
   Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
@@ -498,26 +542,7 @@ void setup()
   {
     Serial.println(F("SSD1306 allocation failed"));
   }
-
-  // Create the starting platform to make sure that the character is not floating in the void
-  Platform start;
-  start.length = 50;
-  start.x = 0;
-  start.y = SCREEN_HEIGHT - PLATFORM_HEIGHT;
-  start.visible = true;
-  lastX = start.x + start.length;
-
-  platforms[0] = start;
-
-  // player initial position
-  xCharacter = start.x + 4;
-  yCharacter = start.y - CHARACTER_HEIGHT - PADDING;
-  
-  //Hide enemies initially
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemies[i].x = 0 - ENEMY_WIDTH;
-    enemies[i].visible = false;
-  }
+  resetGame();
 }
 
 void loop()
@@ -531,17 +556,13 @@ void loop()
   }
   else
   {
-    // --- Game Update Logic (Only runs if lives > 0) ---
 
-    // Display hearts
+    // Set up scene
     drawHearts(lives);
-    // Display player
     drawGhost();
-
-    // Handle scene (platforms)
     createPlatform();
 
-    // Handle character logic
+    // Player logic
     jump();
     jumpPhysics();
     handleFallAndLives();
@@ -554,12 +575,11 @@ void loop()
 
     // Score logic
 
-    updateScene();
+      updateScene();
 
     prevPinButtonUp = digitalRead(pinButtonUp);
     prevPinButtonShoot = digitalRead(pinButtonShoot);
   }
-
   oled.display();
   delay(30);
 }
