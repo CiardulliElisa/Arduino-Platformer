@@ -133,10 +133,12 @@ void spawnEnemy()
   {
     if (!enemies[e].visible)
     {
-      // Find a platform that has a point off screen
       for (int i = 0; i < MAX_PLATFORMS; i++)
       {
+        //make sure the new enemy is placed both off screen and after the furthest enemy
         int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
+        startingPoint += UNIT;
+        //Find a platform that has a point that can containg the new enemy 
         if (platforms[i].x + platforms[i].length >= startingPoint)
         {
           // spawn the enemy on a random coordinate of the platoform, that is off screen, only if it is at least a unit's distance from the furthest enemy
