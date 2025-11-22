@@ -123,7 +123,7 @@ struct Bullet
   bool visible;
 };
 
-int BULLET_RADIUS = 1;
+int BULLET_RADIUS = 2;
 int const MAX_BULLETS = 50;
 Bullet bullets[MAX_BULLETS];
 
@@ -167,6 +167,7 @@ void spawnEnemy()
   }
 }
 
+// When the user clicks the shooting button, a bullet is shot out
 void shoot()
 {
   // shoot bullest when the shoot button is clicked
@@ -180,7 +181,7 @@ void shoot()
         bullets[i].x = xCharacter + CHARACTER_WIDTH + 4;
         bullets[i].y = yCharacter + (CHARACTER_HEIGHT / 2);
         bullets[i].visible = true;
-        oled.fillCircle(bullets[i].x, bullets[i].y, BULLET_RADIUS, WHITE);
+        break;
       }
     }
 
@@ -204,6 +205,34 @@ void enemyCollision()
         lives--;
         enemies[i].visible = false;
         repositionPlayer();
+      }
+    }
+  }
+}
+
+void enemyKill()
+{
+  for (int i = 0; i < MAX_ENEMIES; i++)
+  {
+    if (enemies[i].visible)
+    {
+      for (int j = 0; j < MAX_BULLETS; j++)
+      {
+        if (bullets[j].visible)
+        {
+          // Check collision between bullet and enemy
+          bool horizontalOverlap = (bullets[j].x + BULLET_RADIUS > enemies[i].x) &&
+                                   (bullets[j].x - BULLET_RADIUS < enemies[i].x + ENEMY_WIDTH);
+          bool verticalOverlap = (bullets[j].y + BULLET_RADIUS > enemies[i].y) &&
+                                 (bullets[j].y - BULLET_RADIUS < enemies[i].y + ENEMY_HEIGHT);
+
+          if (horizontalOverlap && verticalOverlap)
+          {
+            enemies[i].visible = false;
+            bullets[j].visible = false;
+            break;
+          }
+        }
       }
     }
   }
@@ -379,26 +408,29 @@ void createPlatform()
   }
 }
 
-// Move and display platforms
-void updateScene()
+// move the bullets forward and remove them if they are no longer visible
+void updateBullets()
 {
-  // last X needs to be recalculated after every scene update
-  lastX = 0;
-  furthestEnemy = 0;
-
-  // move bullets
   for (int i = 0; i < MAX_BULLETS; i++)
   {
-    bullets[i].x += speed + 2;
-    if(bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH) {
+    if(bullets[i].visible) {
+      bullets[i].x += speed + 2;
+    }
+    if (bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH)
+    {
       bullets[i].visible = false;
     }
-    if(bullets[i].visible) {
+    if (bullets[i].visible)
+    {
       oled.fillCircle(bullets[i].x, bullets[i].y, BULLET_RADIUS, WHITE);
     }
   }
+}
 
-  // move platforms
+void updatePlatforms()
+{
+  lastX = 0;
+
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
     if (platforms[i].visible)
@@ -413,27 +445,45 @@ void updateScene()
       {
         lastX = platforms[i].x + platforms[i].length;
       }
-
-      // Display platform
       oled.fillRect(platforms[i].x, platforms[i].y, platforms[i].length, PLATFORM_HEIGHT, WHITE);
     }
   }
-  //Move enemies
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemies[i].x -= speed;
-    // if part of the enemy is still visible, display it
-    if (enemies[i].x + ENEMY_WIDTH >= 0)
+}
+
+void updateEnemies()
+{
+  furthestEnemy = 0;
+  // Move enemies
+  for (int i = 0; i < MAX_ENEMIES; i++)
+  {
+    // this logic only applies to visible platforms
+    if (enemies[i].visible)
     {
-      oled.drawBitmap(enemies[i].x, enemies[i].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
-      if(enemies[i].x + ENEMY_WIDTH >= furthestEnemy) {
-        furthestEnemy = enemies[i].x + ENEMY_WIDTH;
-      }
+      enemies[i].x -= speed;
     }
-    else
+    if (enemies[i].x + ENEMY_WIDTH <= 0)
     {
       enemies[i].visible = false;
     }
+    if (enemies[i].visible)
+    {
+      oled.drawBitmap(enemies[i].x, enemies[i].y, enemyBitmap, ENEMY_WIDTH, ENEMY_HEIGHT, WHITE);
+      if (enemies[i].x + ENEMY_WIDTH >= furthestEnemy)
+      {
+        furthestEnemy = enemies[i].x + ENEMY_WIDTH;
+      }
+    }
   }
+}
+
+// Move and display platforms
+void updateScene()
+{
+  updateBullets();
+
+  updatePlatforms();
+
+  updateEnemies();
 }
 
 void setup()
@@ -490,13 +540,13 @@ void loop()
 
     // Handle scene (platforms)
     createPlatform();
-    updateScene();
 
     // Handle character logic
     jump();
     jumpPhysics();
     handleFallAndLives();
     shoot();
+    enemyKill();
 
     // Enemy logic
     spawnEnemy();
@@ -504,7 +554,7 @@ void loop()
 
     // Score logic
 
-    // Coins logic
+    updateScene();
 
     prevPinButtonUp = digitalRead(pinButtonUp);
     prevPinButtonShoot = digitalRead(pinButtonShoot);
