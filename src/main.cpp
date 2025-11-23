@@ -259,20 +259,22 @@ Platform findSpawnPoint(int objWidth, int objHeight)
 // Spawns a heart on a random platform, off screen, making sure it does not overlap other hearts or enemies
 void spawnHeart()
 {
-  // See if there is an available slot in the hearts array
-  for (int h = 0; h < MAX_HEARTS; h++)
-  {
-    if (!hearts[h].visible)
+  if(lives < 3) {
+    // See if there is an available slot in the hearts array
+    for (int h = 0; h < MAX_HEARTS; h++)
     {
-      Platform spawnPoint = findSpawnPoint(heartWidth, heartHeight);
-      if (spawnPoint.x != -1)
+      if (!hearts[h].visible)
       {
-        hearts[h].x = spawnPoint.x;
-        hearts[h].y = spawnPoint.y;
-        hearts[h].visible = true;
-        // this becomes the last heart
-        furthestHeart = hearts[h].x + heartWidth;
-        break;
+        Platform spawnPoint = findSpawnPoint(heartWidth, heartHeight);
+        if (spawnPoint.x != -1)
+        {
+          hearts[h].x = spawnPoint.x;
+          hearts[h].y = spawnPoint.y;
+          hearts[h].visible = true;
+          // this becomes the last heart
+          furthestHeart = hearts[h].x + heartWidth;
+          break;
+        }
       }
     }
   }
@@ -769,10 +771,7 @@ void loop()
     spawnEnemy();
     enemyCollision();
 
-    if (lives < 3)
-    {
-      spawnHeart();
-    }
+    spawnHeart();
     heartCollision();
 
     updateScene();
