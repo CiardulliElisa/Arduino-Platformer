@@ -611,7 +611,7 @@ void createPlatform()
     {
       // There is a  lesser chance of there being a gap
       int randomX = random(4) == 0 ? 1 : 0;
-      platforms[i].x = lastX + INTERVAL_UNIT * randomX;
+      platforms[i].x = lastX + PLATFORM_DISTANCE * randomX;
       platforms[i].length = UNIT * random(1, 5);
       platforms[i].y = levels[random(MAX_LEVELS)];
       platforms[i].visible = true;
