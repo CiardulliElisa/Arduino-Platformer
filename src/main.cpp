@@ -753,6 +753,7 @@ void loop()
     spawnEnemy();
     enemyCollision();
 
+    //Hearts logic
     spawnHeart();
     heartCollision();
 
@@ -762,5 +763,4 @@ void loop()
     prevPinButtonShoot = digitalRead(pinButtonShoot);
   }
   oled.display();
-  delay(30);
 }
