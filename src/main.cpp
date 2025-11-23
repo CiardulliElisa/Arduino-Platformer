@@ -124,7 +124,7 @@ const unsigned char enemyBitmap[] PROGMEM = {
 
 int ENEMY_HEIGHT = 10;
 int ENEMY_WIDTH = 10;
-int const MAX_ENEMIES = 3;
+int const MAX_ENEMIES = 5;
 Enemy enemies[MAX_ENEMIES];
 int furthestEnemy = 0;
 
