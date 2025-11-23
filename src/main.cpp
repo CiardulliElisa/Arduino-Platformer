@@ -7,8 +7,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-// #define SCREEN_ADDRESS 0x3D //Physical
-#define SCREEN_ADDRESS 0x3C // Emulator
+#define SCREEN_ADDRESS 0x3D //Physical
+// #define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -80,6 +80,9 @@ struct Heart
   int y;
   bool visible;
 };
+
+void updateScene();
+
 const int MAX_HEARTS = 2;
 int furthestHeart = 0;
 Heart hearts[MAX_HEARTS];
@@ -124,7 +127,7 @@ const unsigned char enemyBitmap[] PROGMEM = {
 
 int ENEMY_HEIGHT = 10;
 int ENEMY_WIDTH = 10;
-int const MAX_ENEMIES = 5;
+const int MAX_ENEMIES = 5;
 Enemy enemies[MAX_ENEMIES];
 int furthestEnemy = 0;
 
@@ -146,6 +149,7 @@ Bullet bullets[MAX_BULLETS];
 int score = 0;
 const int SCORE_INCREMENT = 10;
 const int ENEMY_KILLED_INCREMENT = 20;
+const int SCORE_INTERVAL = 2000;
 unsigned long lastScoreTime = 0;
 
 // Created a heart for each life in the top right of the screen
@@ -159,6 +163,17 @@ void drawHearts(int lives)
   }
 }
 
+// Updating the score game
+void updateScore()
+{
+  // add points every 2s
+  if (millis() - lastScoreTime >= SCORE_INTERVAL)
+  {
+    score += SCORE_INCREMENT;
+    lastScoreTime = millis();
+  }
+}
+
 // Displaying score on the screen
 void drawScore()
 {
@@ -167,17 +182,6 @@ void drawScore()
   oled.setCursor(2, 2);
   oled.print("Score: ");
   oled.print(score);
-}
-
-// Updating the score game
-void updateScore()
-{
-  // add points every 2s
-  if (millis() - lastScoreTime >= 2000)
-  {
-    score += SCORE_INCREMENT;
-    lastScoreTime = millis();
-  }
 }
 
 // Moves hearts, draws them on screen, and hides them if off-screen
@@ -241,7 +245,7 @@ Platform findSpawnPoint(int objWidth, int objHeight)
     if (platforms[i].visible && platforms[i].x >= SCREEN_WIDTH)
     {
       // off screen, to the right of the furthest heart and the furthest enemy
-      int startingPoint = max(SCREEN_WIDTH ,furthestHeart);
+      int startingPoint = max(SCREEN_WIDTH, furthestHeart);
       startingPoint = max(startingPoint, furthestEnemy);
       // add additional distance, so the spawned object is not too close to the last one
       startingPoint += UNIT;
@@ -254,6 +258,22 @@ Platform findSpawnPoint(int objWidth, int objHeight)
         p.y = platforms[i].y - objHeight - PADDING;
         // Return the coordinates of the spawn point as a one point platform, this is done to avoid creating a new struct
         return p;
+      }
+    }
+  }
+
+  // case no off screen platfroms is found --> spawn on leftmost visible platform
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    if (platforms[i].visible)
+    {
+      int startX = platforms[i].x;
+      int endX = platforms[i].x + platforms[i].length - objWidth;
+      if (endX >= startX)
+      {
+          p.x = startX + 2; 
+          p.y = platforms[i].y - objHeight - PADDING;
+          return p;
       }
     }
   }
@@ -708,7 +728,7 @@ void updateScene()
 void setup()
 {
   // Hardware setup
-  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
