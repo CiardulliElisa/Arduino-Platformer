@@ -6,8 +6,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3D //Physical
-// #define SCREEN_ADDRESS 0x3C // Emulator
+// #define SCREEN_ADDRESS 0x3D //Physical
+#define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -63,16 +63,16 @@ const int heartHeight = 7;
 int lives = 3;
 
 const unsigned char heartBitmap[] PROGMEM = {
-  0b01100110,
-  0b11111111,
-  0b11111111,
-  0b11111111,
-  0b01111110,
-  0b00111100,
-  0b00011000
-};
+    0b01100110,
+    0b11111111,
+    0b11111111,
+    0b11111111,
+    0b01111110,
+    0b00111100,
+    0b00011000};
 
-struct Heart {
+struct Heart
+{
   int x;
   int y;
   bool visible;
@@ -80,7 +80,7 @@ struct Heart {
 const int MAX_HEARTS = 2;
 int furthestHeart = 0;
 Heart hearts[MAX_HEARTS];
-    
+
 // Player variables
 const int CHARACTER_WIDTH = 8;
 const int CHARACTER_HEIGHT = 10;
@@ -140,7 +140,7 @@ const int MAX_BULLETS = 50;
 Bullet bullets[MAX_BULLETS];
 
 // Scoring variables
-int score = 0; 
+int score = 0;
 const int SCORE_INCREMENT = 10;
 const int ENEMY_KILLED_INCREMENT = 20;
 unsigned long lastScoreTime = 0;
@@ -157,61 +157,42 @@ void drawHearts(int lives)
 }
 
 // Displaying score on the screen
-void drawScore() {
+void drawScore()
+{
   oled.setTextSize(1);
   oled.setTextColor(WHITE);
-  oled.setCursor(2, 2);      
+  oled.setCursor(2, 2);
   oled.print("Score: ");
   oled.print(score);
 }
 
 // Updating the score game
-void updateScore() {
+void updateScore()
+{
   // add points every 2s
-  if (millis() - lastScoreTime >= 2000) {
+  if (millis() - lastScoreTime >= 2000)
+  {
     score += SCORE_INCREMENT;
     lastScoreTime = millis();
   }
 }
 
-// Spawns a heart on a random platform, off screen
-void spawnHeart() {
-  // See if there is an available slot in the hearts array
-  for (int h = 0; h < MAX_HEARTS; h++) {
-    if (!hearts[h].visible) {
-      // pick a visible platform
-      for (int i = 0; i < MAX_PLATFORMS; i++) {
-        if (!platforms[i].visible) {
-          continue;
-        }
-
-        int startingPoint = SCREEN_WIDTH >= furthestHeart ? SCREEN_WIDTH : furthestHeart + 2; // spacing after last heart
-        int maxX = platforms[i].x + platforms[i].length - heartWidth;
-
-        if (maxX > startingPoint) {
-          hearts[h].x = random(startingPoint, maxX);
-          hearts[h].y = platforms[i].y - heartHeight - PADDING;
-          hearts[h].visible = true;
-          // this becomes the last heart
-          furthestHeart = hearts[h].x + heartWidth; 
-          break;
-        }
-      }
-    }
-  }
-}
-
 // Moves hearts, draws them on screen, and hides them if off-screen
-void updateHearts() {
-  for (int h = 0; h < MAX_HEARTS; h++) {
-    if (hearts[h].visible) {
+void updateHearts()
+{
+  for (int h = 0; h < MAX_HEARTS; h++)
+  {
+    if (hearts[h].visible)
+    {
       hearts[h].x -= SPEED;
 
-      if (hearts[h].x + heartWidth <= 0) {
+      if (hearts[h].x + heartWidth <= 0)
+      {
         hearts[h].visible = false;
       }
 
-      if (hearts[h].visible) {
+      if (hearts[h].visible)
+      {
         oled.drawBitmap(hearts[h].x, hearts[h].y, heartBitmap, heartWidth, heartHeight, WHITE);
       }
     }
@@ -219,23 +200,79 @@ void updateHearts() {
 }
 
 // If the player touches a heart, it gets a life, the heart disappears
-void heartCollision() {
-  for (int h = 0; h < MAX_HEARTS; h++) {
-    if (hearts[h].visible) {
+void heartCollision()
+{
+  for (int h = 0; h < MAX_HEARTS; h++)
+  {
+    if (hearts[h].visible)
+    {
 
       bool horizontal =
-        (xCharacter + CHARACTER_WIDTH > hearts[h].x) &&
-        (xCharacter < hearts[h].x + heartWidth);
+          (xCharacter + CHARACTER_WIDTH > hearts[h].x) &&
+          (xCharacter < hearts[h].x + heartWidth);
 
       bool vertical =
-        (yCharacter + CHARACTER_HEIGHT > hearts[h].y) &&
-        (yCharacter < hearts[h].y + heartHeight);
+          (yCharacter + CHARACTER_HEIGHT > hearts[h].y) &&
+          (yCharacter < hearts[h].y + heartHeight);
 
-      if (horizontal && vertical) {
-        if (lives < 3) {
+      if (horizontal && vertical)
+      {
+        if (lives < 3)
+        {
           lives++;
         }
         hearts[h].visible = false;
+      }
+    }
+  }
+}
+
+// Find a point that is off screen, to the right of both the furthest enemy and the furthest heart, where to spawn an object
+Platform findSpawnPoint(int objWidth, int objHeight)
+{
+  Platform p;
+  p.x = -1; // make the platform recognisable if it should not change
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    // The platform must be visible
+    if (platforms[i].visible)
+    {
+      // off screen, to the right of the furthest heart and the furthest enemy
+      int startingPoint = SCREEN_WIDTH >= furthestHeart ? SCREEN_WIDTH : furthestHeart;
+      startingPoint = startingPoint >= furthestEnemy ? startingPoint : furthestEnemy;
+      // add padding, so the spawned object is not too close to the last one
+      startingPoint += UNIT;
+      // the object must be on the platform in its entirety
+      int endPoint = platforms[i].x + platforms[i].length - objWidth;
+      if (endPoint >= startingPoint)
+      {
+        p.x = random(startingPoint, endPoint + 1);
+        p.y = platforms[i].y - objHeight - PADDING;
+        // Return the coordinates of the spawn point as a one point platform, this is done to avoid creating a new struct
+        return p;
+      }
+    }
+  }
+  return p;
+}
+
+// Spawns a heart on a random platform, off screen, making sure it does not overlap other hearts or enemies
+void spawnHeart()
+{
+  // See if there is an available slot in the hearts array
+  for (int h = 0; h < MAX_HEARTS; h++)
+  {
+    if (!hearts[h].visible)
+    {
+      Platform spawnPoint = findSpawnPoint(heartWidth, heartHeight);
+      if (spawnPoint.x != -1)
+      {
+        hearts[h].x = spawnPoint.x;
+        hearts[h].y = spawnPoint.y;
+        hearts[h].visible = true;
+        // this becomes the last heart
+        furthestHeart = hearts[h].x + heartWidth;
+        break;
       }
     }
   }
@@ -249,20 +286,15 @@ void spawnEnemy()
   {
     if (!enemies[e].visible)
     {
-      for (int i = 0; i < MAX_PLATFORMS; i++)
+      Platform spawnPoint = findSpawnPoint(ENEMY_WIDTH, ENEMY_HEIGHT);
+      if (spawnPoint.x != -1)
       {
-        // Place enemy on a platform such that it is placed both off screen and a safe distance after the last enemy
-        int startingPoint = SCREEN_WIDTH >= furthestEnemy ? SCREEN_WIDTH : furthestEnemy;
-        startingPoint += UNIT;
-        if (platforms[i].x + platforms[i].length >= startingPoint)
-        {
-          enemies[e].x = random(startingPoint, platforms[i].x + platforms[i].length);
-          enemies[e].y = platforms[i].y - PADDING - ENEMY_HEIGHT;
-          enemies[e].visible = true;
-          // this becomes the last enemy
-          furthestEnemy = enemies[e].x + ENEMY_WIDTH;
-          break;
-        }
+        enemies[e].x = spawnPoint.x;
+        enemies[e].y = spawnPoint.y;
+        enemies[e].visible = true;
+        // this becomes the last enemy
+        furthestEnemy = enemies[e].x + ENEMY_WIDTH;
+        break;
       }
     }
   }
@@ -351,7 +383,7 @@ void jump()
   if (digitalRead(pinButtonUp) == LOW && prevPinButtonUp == HIGH)
   {
     if (!isFalling)
-    { // player can jump only if on a platform
+    {                   // player can jump only if on a platform
       ySpeed = impulse; // zets up upward movement
       isFalling = true;
       isJumping = true;
@@ -371,26 +403,28 @@ void jumpPhysics()
   yCharacter += ySpeed;
 
   // handling the upward collision with the floating platform
-  for (int i = 0; i < MAX_PLATFORMS; i++) {
-    if (!platforms[i].visible) {
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    if (!platforms[i].visible)
+    {
       continue;
     }
     // horizontal overlap
     bool horizontalOverlap =
-      (xCharacter + CHARACTER_WIDTH > platforms[i].x) &&
-      (xCharacter < platforms[i].x + platforms[i].length);
+        (xCharacter + CHARACTER_WIDTH > platforms[i].x) &&
+        (xCharacter < platforms[i].x + platforms[i].length);
     // check head collides with bottom edge floating platform
     bool headHitsPlatform =
-      (yCharacter <= platforms[i].y + PLATFORM_HEIGHT) &&         
-      (yCharacter >= platforms[i].y) && 
-      (ySpeed < 0);                                                
-    if (horizontalOverlap && headHitsPlatform) {
+        (yCharacter <= platforms[i].y + PLATFORM_HEIGHT) &&
+        (yCharacter >= platforms[i].y) &&
+        (ySpeed < 0);
+    if (horizontalOverlap && headHitsPlatform)
+    {
       yCharacter = platforms[i].y + PLATFORM_HEIGHT;
       ySpeed = 0;
       break;
     }
   }
-
 
   bool landed = false;
   // checking for collisions on platforms
@@ -433,29 +467,37 @@ void jumpPhysics()
 }
 
 // reposition the player on the first platform (either ground ir floating) that appears after the fall
-void repositionPlayer() {
-  int xFall = xCharacter;      // position of the player fall
-  int platformIndex = -1;      // right platform on where to reposition the player
-  
+void repositionPlayer()
+{
+  int xFall = xCharacter; // position of the player fall
+  int platformIndex = -1; // right platform on where to reposition the player
+
   // find the platform for the player to land after the fall
-  for (int i = 0; i < MAX_PLATFORMS; i++) {
-    if (!platforms[i].visible) {
+  for (int i = 0; i < MAX_PLATFORMS; i++)
+  {
+    if (!platforms[i].visible)
+    {
       continue;
-    } 
+    }
     // find platform covering the fall position
-    if (xFall >= platforms[i].x && xFall <= platforms[i].x + platforms[i].length) {
-      platformIndex = i;   // store the platform
+    if (xFall >= platforms[i].x && xFall <= platforms[i].x + platforms[i].length)
+    {
+      platformIndex = i; // store the platform
       break;
     }
   }
 
   // find first platform to the right of the player fall
-  if (platformIndex == -1) {
-    for (int i = 0; i < MAX_PLATFORMS; i++) {
-      if (!platforms[i].visible) {
+  if (platformIndex == -1)
+  {
+    for (int i = 0; i < MAX_PLATFORMS; i++)
+    {
+      if (!platforms[i].visible)
+      {
         continue;
       }
-      if (platforms[i].x >= xFall) {
+      if (platforms[i].x >= xFall)
+      {
         platformIndex = i;
         break;
       }
@@ -463,24 +505,27 @@ void repositionPlayer() {
   }
 
   // edge case where no platforms are found (should never enter this consition anyhow)
-  if (platformIndex == -1) {
-    for (int i = 0; i < MAX_PLATFORMS; i++) {
-      if (platforms[i].visible) {
+  if (platformIndex == -1)
+  {
+    for (int i = 0; i < MAX_PLATFORMS; i++)
+    {
+      if (platforms[i].visible)
+      {
         platformIndex = i;
         break;
       }
     }
-  } 
+  }
   // reposition player after the fall
-  if (platformIndex != -1) {
-    xCharacter = platforms[platformIndex].x + 4; // 4px buffer 
+  if (platformIndex != -1)
+  {
+    xCharacter = platforms[platformIndex].x + 4; // 4px buffer
     yCharacter = platforms[platformIndex].y - CHARACTER_HEIGHT - PADDING;
     ySpeed = 0;
     isFalling = false;
     isJumping = false;
   }
 }
-
 
 // When the player falls off screen but still has lives, they lose a life. If the character is repositioned and the game continues
 void handleFallAndLives()
@@ -495,7 +540,7 @@ void handleFallAndLives()
   }
 }
 
-//Resets all variables and created the first scene
+// Resets all variables and created the first scene
 void resetGame()
 {
   // Reset score
@@ -530,13 +575,15 @@ void resetGame()
   }
 
   // Reset bullets
-  for (int i = 0; i < MAX_BULLETS; i++) {
+  for (int i = 0; i < MAX_BULLETS; i++)
+  {
     bullets[i].visible = false;
   }
 
   // Reset hearts
   furthestHeart = 0;
-  for (int i = 0; i < MAX_HEARTS; i++) {
+  for (int i = 0; i < MAX_HEARTS; i++)
+  {
     hearts[i].visible = false;
     hearts[i].x = 0;
     hearts[i].y = 0;
@@ -570,30 +617,26 @@ void gameOver()
   }
 }
 
-
 // Create a platform
 void createPlatform()
 {
   // Find first available slot in the platforms array
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    // stop if the generated platforms fill the screen width
-    if (lastX < SCREEN_WIDTH)
+    if (!platforms[i].visible)
     {
-      if (!platforms[i].visible)
+      // There is a  lesser chance of there being a gap
+      int randomX = random(10) == 0 ? 1 : 0;
+      platforms[i].x = lastX + UNIT * randomX;
+      platforms[i].length = UNIT * random(1, 5);
+      platforms[i].y = levels[random(MAX_LEVELS)];
+      platforms[i].visible = true;
+      // Update last x, if the new platform is further right than any other platform
+      if (lastX <= platforms[i].x + platforms[i].length)
       {
-        // There is a  lesser chance of there being a gap
-        int randomX = random(10) == 0 ? 1 : 0;
-        platforms[i].x = lastX + UNIT * randomX;
-        platforms[i].length = UNIT * random(1, 5);
-        platforms[i].y = levels[random(MAX_LEVELS)];
-        platforms[i].visible = true;
-        // Update last x, if the new platform is further right than any other platform
-        if (lastX <= platforms[i].x + platforms[i].length)
-        {
-          lastX = platforms[i].x + platforms[i].length;
-        }
+        lastX = platforms[i].x + platforms[i].length;
       }
+      break;
     }
   }
 }
@@ -603,7 +646,8 @@ void updateBullets()
 {
   for (int i = 0; i < MAX_BULLETS; i++)
   {
-    if(bullets[i].visible) {
+    if (bullets[i].visible)
+    {
       bullets[i].x += SPEED + 2;
     }
     if (bullets[i].x <= 0 || bullets[i].x >= SCREEN_WIDTH || bullets[i].x - bullets[i].initialPos >= MAX_BULLET_DISTANCE)
@@ -680,7 +724,7 @@ void updateScene()
 void setup()
 {
   // Hardware setup
-  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
@@ -698,11 +742,14 @@ void loop()
 
   oled.clearDisplay();
 
-  if (lives <= 0) {
+  if (lives <= 0)
+  {
     gameOver();
-  } else {
+  }
+  else
+  {
 
-     // Score logic
+    // Score logic
     updateScore();
 
     // Set up scene
@@ -722,7 +769,10 @@ void loop()
     spawnEnemy();
     enemyCollision();
 
-    spawnHeart();
+    if (lives < 3)
+    {
+      spawnHeart();
+    }
     heartCollision();
 
     updateScene();
