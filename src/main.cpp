@@ -28,7 +28,7 @@ const int PLATFORM_HEIGHT = 4;
 const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
 const int UNIT = 15;
-const int INTERVAL_UNIT = 5;
+const int PLATFORM_DISTANCE = 10;
 const int SPEED = 2; // speed at which the scene moves
 
 struct Enemy
