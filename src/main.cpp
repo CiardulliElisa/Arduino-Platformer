@@ -22,6 +22,7 @@ int prevPinButtonShoot = HIGH;
 
 // Game environment variables.
 const int PADDING = 1;
+const int LEFT_PADDING = 4;
 const int PLATFORM_HEIGHT = 4;
 const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
@@ -259,7 +260,8 @@ Platform findSpawnPoint(int objWidth, int objHeight)
 // Spawns a heart on a random platform, off screen, making sure it does not overlap other hearts or enemies
 void spawnHeart()
 {
-  if(lives < 3) {
+  if (lives < 3)
+  {
     // See if there is an available slot in the hearts array
     for (int h = 0; h < MAX_HEARTS; h++)
     {
@@ -337,7 +339,6 @@ void enemyCollision()
       {
         lives--;
         enemies[i].visible = false;
-        // repositionPlayer();
       }
     }
   }
@@ -473,55 +474,26 @@ void repositionPlayer()
 {
   int xFall = xCharacter; // position of the player fall
   int platformIndex = -1; // right platform on where to reposition the player
+  bool platformFound = false;
 
-  // find the platform for the player to land after the fall
+  // Check all platforms looking for the one that covers the initial position of the character
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    if (!platforms[i].visible)
+    if (!platforms[i].visible || platforms[i].x >= SCREEN_WIDTH)
     {
       continue;
     }
-    // find platform covering the fall position
-    if (xFall >= platforms[i].x && xFall <= platforms[i].x + platforms[i].length)
+    if (platforms[i].x <= LEFT_PADDING && LEFT_PADDING <= platforms[i].x + platforms[i].length)
     {
-      platformIndex = i; // store the platform
+      platformIndex = i;
       break;
     }
   }
 
-  // find first platform to the right of the player fall
-  if (platformIndex == -1)
-  {
-    for (int i = 0; i < MAX_PLATFORMS; i++)
-    {
-      if (!platforms[i].visible)
-      {
-        continue;
-      }
-      if (platforms[i].x >= xFall)
-      {
-        platformIndex = i;
-        break;
-      }
-    }
-  }
-
-  // edge case where no platforms are found (should never enter this consition anyhow)
-  if (platformIndex == -1)
-  {
-    for (int i = 0; i < MAX_PLATFORMS; i++)
-    {
-      if (platforms[i].visible)
-      {
-        platformIndex = i;
-        break;
-      }
-    }
-  }
   // reposition player after the fall
   if (platformIndex != -1)
   {
-    xCharacter = platforms[platformIndex].x + 4; // 4px buffer
+    xCharacter = LEFT_PADDING;
     yCharacter = platforms[platformIndex].y - CHARACTER_HEIGHT - PADDING;
     ySpeed = 0;
     isFalling = false;
