@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <algorithm>
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -26,7 +27,8 @@ const int LEFT_PADDING = 4;
 const int PLATFORM_HEIGHT = 4;
 const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
-const int UNIT = 10;
+const int UNIT = 15;
+const int INTERVAL_UNIT = 5;
 const int SPEED = 2; // speed at which the scene moves
 
 struct Enemy
@@ -233,16 +235,17 @@ Platform findSpawnPoint(int objWidth, int objHeight)
 {
   Platform p;
   p.x = -1; // make the platform recognisable if it should not change
+  p.y = -1;
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    // The platform must be visible
-    if (platforms[i].visible)
+    if (platforms[i].visible && platforms[i].x >= SCREEN_WIDTH)
     {
       // off screen, to the right of the furthest heart and the furthest enemy
-      int startingPoint = SCREEN_WIDTH >= furthestHeart ? SCREEN_WIDTH : furthestHeart;
-      startingPoint = startingPoint >= furthestEnemy ? startingPoint : furthestEnemy;
-      // add padding, so the spawned object is not too close to the last one
+      int startingPoint = max(SCREEN_WIDTH ,furthestHeart);
+      startingPoint = max(startingPoint, furthestEnemy);
+      // add additional distance, so the spawned object is not too close to the last one
       startingPoint += UNIT;
+      startingPoint = max(startingPoint, platforms[i].x);
       // the object must be on the platform in its entirety
       int endPoint = platforms[i].x + platforms[i].length - objWidth;
       if (endPoint >= startingPoint)
@@ -268,7 +271,7 @@ void spawnHeart()
       if (!hearts[h].visible)
       {
         Platform spawnPoint = findSpawnPoint(heartWidth, heartHeight);
-        if (spawnPoint.x != -1)
+        if (spawnPoint.x != -1 && spawnPoint.y != -1)
         {
           hearts[h].x = spawnPoint.x;
           hearts[h].y = spawnPoint.y;
@@ -291,7 +294,7 @@ void spawnEnemy()
     if (!enemies[e].visible)
     {
       Platform spawnPoint = findSpawnPoint(ENEMY_WIDTH, ENEMY_HEIGHT);
-      if (spawnPoint.x != -1)
+      if (spawnPoint.x != -1 && spawnPoint.y != -1)
       {
         enemies[e].x = spawnPoint.x;
         enemies[e].y = spawnPoint.y;
@@ -477,16 +480,23 @@ void repositionPlayer()
   bool platformFound = false;
 
   // Check all platforms looking for the one that covers the initial position of the character
-  for (int i = 0; i < MAX_PLATFORMS; i++)
-  {
-    if (!platforms[i].visible || platforms[i].x >= SCREEN_WIDTH)
+  while(platformIndex == -1) {
+    for (int i = 0; i < MAX_PLATFORMS; i++)
     {
-      continue;
+      if (!platforms[i].visible || platforms[i].x >= SCREEN_WIDTH)
+      {
+        continue;
+      }
+      if (platforms[i].x <= LEFT_PADDING && LEFT_PADDING <= platforms[i].x + platforms[i].length)
+      {
+        platformIndex = i;
+        break;
+      }
     }
-    if (platforms[i].x <= LEFT_PADDING && LEFT_PADDING <= platforms[i].x + platforms[i].length)
+    // If no suitable platform is found, move them all, until a suitable one is found
+    if (platformIndex == -1)
     {
-      platformIndex = i;
-      break;
+      updateScene();
     }
   }
 
@@ -600,8 +610,8 @@ void createPlatform()
     if (!platforms[i].visible)
     {
       // There is a  lesser chance of there being a gap
-      int randomX = random(10) == 0 ? 1 : 0;
-      platforms[i].x = lastX + UNIT * randomX;
+      int randomX = random(4) == 0 ? 1 : 0;
+      platforms[i].x = lastX + INTERVAL_UNIT * randomX;
       platforms[i].length = UNIT * random(1, 5);
       platforms[i].y = levels[random(MAX_LEVELS)];
       platforms[i].visible = true;
