@@ -7,7 +7,7 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3D //Physical
+#define SCREEN_ADDRESS 0x3D // Physical
 // #define SCREEN_ADDRESS 0x3C // Emulator
 
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -29,7 +29,7 @@ const int PLATFORM_INTERVAL = 16;
 const int JUMP = PLATFORM_INTERVAL + PLATFORM_HEIGHT;
 const int UNIT = 15;
 const int PLATFORM_DISTANCE = 10;
-const int SPEED = 2; // speed at which the scene moves
+const int SPEED = 1; // speed at which the scene moves
 
 struct Enemy
 {
@@ -152,7 +152,7 @@ const int ENEMY_KILLED_INCREMENT = 20;
 const int SCORE_INTERVAL = 2000;
 unsigned long lastScoreTime = 0;
 
-// Created a heart for each life in the top right of the screen
+// Creates a heart for each life in the top right of the screen
 void drawHearts(int lives)
 {
   for (int i = 0; i < lives; i++)
@@ -174,7 +174,7 @@ void updateScore()
   }
 }
 
-// Displaying score on the screen
+// Displays score in the top left of the screen
 void drawScore()
 {
   oled.setTextSize(1);
@@ -214,13 +214,11 @@ void heartCollision()
     if (hearts[h].visible)
     {
 
-      bool horizontal =
-          (xCharacter + CHARACTER_WIDTH > hearts[h].x) &&
-          (xCharacter < hearts[h].x + heartWidth);
+      bool horizontal = (xCharacter + CHARACTER_WIDTH > hearts[h].x) &&
+                        (xCharacter < hearts[h].x + heartWidth);
 
-      bool vertical =
-          (yCharacter + CHARACTER_HEIGHT > hearts[h].y) &&
-          (yCharacter < hearts[h].y + heartHeight);
+      bool vertical = (yCharacter + CHARACTER_HEIGHT > hearts[h].y) &&
+                      (yCharacter < hearts[h].y + heartHeight);
 
       if (horizontal && vertical)
       {
@@ -242,7 +240,7 @@ Platform findSpawnPoint(int objWidth, int objHeight)
   p.y = -1;
   for (int i = 0; i < MAX_PLATFORMS; i++)
   {
-    if (platforms[i].visible && platforms[i].x >= SCREEN_WIDTH)
+    if (platforms[i].visible && platforms[i].x + platforms[i].length >= SCREEN_WIDTH)
     {
       // off screen, to the right of the furthest heart and the furthest enemy
       int startingPoint = max(SCREEN_WIDTH, furthestHeart);
@@ -271,9 +269,9 @@ Platform findSpawnPoint(int objWidth, int objHeight)
       int endX = platforms[i].x + platforms[i].length - objWidth;
       if (endX >= startX)
       {
-          p.x = startX + 2; 
-          p.y = platforms[i].y - objHeight - PADDING;
-          return p;
+        p.x = startX + 2;
+        p.y = platforms[i].y - objHeight - PADDING;
+        return p;
       }
     }
   }
@@ -410,7 +408,7 @@ void jump()
   {
     if (!isFalling)
     {                   // player can jump only if on a platform
-      ySpeed = impulse; // zets up upward movement
+      ySpeed = impulse; // sets up upward movement
       isFalling = true;
       isJumping = true;
     }
@@ -420,7 +418,6 @@ void jump()
 // applying physics logic to the jump, so the character falls down with gravity
 void jumpPhysics()
 {
-
   // character before fall increment
   int yCharacter_prev = yCharacter;
 
@@ -500,7 +497,8 @@ void repositionPlayer()
   bool platformFound = false;
 
   // Check all platforms looking for the one that covers the initial position of the character
-  while(platformIndex == -1) {
+  while (platformIndex == -1)
+  {
     for (int i = 0; i < MAX_PLATFORMS; i++)
     {
       if (!platforms[i].visible || platforms[i].x >= SCREEN_WIDTH)
@@ -728,7 +726,7 @@ void updateScene()
 void setup()
 {
   // Hardware setup
-  //Wire.begin(SDA_PIN, SCL_PIN); // Emulator
+  // Wire.begin(SDA_PIN, SCL_PIN); // Emulator
   Serial.begin(9600);
 
   pinMode(pinButtonUp, INPUT_PULLUP);
@@ -773,7 +771,7 @@ void loop()
     spawnEnemy();
     enemyCollision();
 
-    //Hearts logic
+    // Hearts logic
     spawnHeart();
     heartCollision();
 
